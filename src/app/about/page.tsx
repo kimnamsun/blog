@@ -31,7 +31,7 @@ const AboutPage = () => {
             </p>
             <p className="break-words text-sm sm:text-base">
               <Link
-                href="https://kimnamsun.github.io"
+                href="https://nlog-ten.vercel.app/article"
                 className="text-blue-500 hover:underline"
               >
                 Blog
@@ -101,7 +101,7 @@ const AboutPage = () => {
                       대학생 서포터즈를 위한 미션 활동 중심의 업투 서비스
                     </p>
                     <p className="mt-1 text-sm text-gray-700">
-                      Next.js, TypeScript, TanStack Query, CSS Module
+                      Next.js, React, TypeScript, TanStack Query, CSS Module
                     </p>
                   </div>
                   <ul className="ml-3 mt-3 list-inside list-disc space-y-2 text-sm text-gray-700 sm:text-base">
@@ -164,7 +164,7 @@ const AboutPage = () => {
                       손쉬운 채용을 지원하는 백오피스
                     </p>
                     <p className="mt-1 text-sm text-gray-700">
-                      Next.js, TypeScript, TanStack Query, Zustand,
+                      Next.js, React, TypeScript, TanStack Query, Zustand,
                       Vanilla-Extract, And design
                     </p>
                   </div>
@@ -200,84 +200,8 @@ const AboutPage = () => {
                     </p>
                     <p className="mt-1 text-sm text-gray-700">
                       <span className="font-medium">기술 스택: </span>Next.js,
-                      TypeScript, Styled-Components, TanStack Query, Zustand
-                    </p>
-                  </div>
-
-                  <div className="mt-6 space-y-4">
-                    {/* 문제 정의 */}
-                    <div className="rounded-lg bg-white p-4 shadow-sm">
-                      <h5 className="text-sm font-medium text-gray-900 sm:text-base">
-                        문제 정의
-                      </h5>
-                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-700 sm:text-base">
-                        <li className="break-words">
-                          jQuery와 Vanilla JS 기반 레거시 프로젝트로 유지보수와
-                          확장이 어려움.
-                        </li>
-                        <li className="break-words">
-                          iframe으로 렌더링되는 React 컴포넌트로 인해 성능 저하.
-                        </li>
-                        <li className="break-words">
-                          타입 정의 부족으로 오류 발생 가능성 높음.
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* 해결 방안 */}
-                    <div className="rounded-lg bg-white p-4 shadow-sm">
-                      <h5 className="text-sm font-medium text-gray-900 sm:text-base">
-                        해결 방안
-                      </h5>
-                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-700 sm:text-base">
-                        <li className="break-words">
-                          Next.js로 마이그레이션하며 iframe 제거 및 구조 개선.
-                        </li>
-                        <li className="break-words">
-                          TypeScript와 OpenAPI Generator로 타입 안전성과 API
-                          연동 강화.
-                        </li>
-                        <li className="break-words">
-                          React Hook Form, Yup, TanStack Query로 데이터 관리와
-                          캐싱 최적화.
-                        </li>
-                        <li className="break-words">
-                          Styled-Components로 디자인 시스템 구축.
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* 성과 */}
-                    <div className="rounded-lg bg-white p-4 shadow-sm">
-                      <h5 className="text-sm font-medium text-gray-900 sm:text-base">
-                        성과
-                      </h5>
-                      <ul className="mt-2 list-inside list-disc space-y-1 text-sm text-gray-700 sm:text-base">
-                        <li className="break-words">
-                          lodash-es로 번들 크기 243.57KB → 193.5KB, 성능 20.55%
-                          개선.
-                        </li>
-                        <li className="break-words">
-                          유지보수성과 코드 가독성 대폭 향상.
-                        </li>
-                        <li className="break-words">
-                          개발 속도와 협업 효율성 증가, 런타임 오류 감소.
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <div>
-                  <div className="border-l-4 border-blue-400 pl-4">
-                    <h4 className="break-words text-base font-medium text-gray-800 sm:text-lg">
-                      DNA (Dunamu Next AML) : 업비트 자금 세탁방지 서비스
-                    </h4>
-                    <p className="mt-0.5 text-sm italic text-gray-500">
-                      업비트 사용자를 위한 자금 세탁 방지 백오피스
-                    </p>
-                    <p className="mt-1 text-sm text-gray-700">
-                      <span className="font-medium">기술 스택: </span>Next.js,
-                      TypeScript, Styled-Components, TanStack Query, Zustand
+                      React, TypeScript, Styled-Components, TanStack Query,
+                      Zustand
                     </p>
                   </div>
                   <ul className="mt-4 list-inside list-disc space-y-2 text-sm text-gray-700 sm:text-base">
@@ -306,8 +230,7 @@ const AboutPage = () => {
                   </ul>
 
                   {/* 문제 정의, 해결 방안, 성과 */}
-                  <div className="mt-6 space-y-6">
-                    {/* 문제 정의 */}
+                  {/* <div className="mt-6 space-y-6">
                     <div className="rounded-lg bg-white p-4 shadow-sm">
                       <h5 className="text-sm font-medium text-gray-900 sm:text-base">
                         문제 정의
@@ -330,7 +253,6 @@ const AboutPage = () => {
                       </ul>
                     </div>
 
-                    {/* 해결 방안 */}
                     <div className="rounded-lg bg-white p-4 shadow-sm">
                       <h5 className="text-sm font-medium text-gray-900 sm:text-base">
                         해결 방안
@@ -356,7 +278,6 @@ const AboutPage = () => {
                       </ul>
                     </div>
 
-                    {/* 성과 */}
                     <div className="rounded-lg bg-white p-4 shadow-sm">
                       <h5 className="text-sm font-medium text-gray-900 sm:text-base">
                         성과
@@ -380,7 +301,7 @@ const AboutPage = () => {
                         </li>
                       </ul>
                     </div>
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* Project 5 */}
@@ -393,8 +314,8 @@ const AboutPage = () => {
                       SDUI 기반으로 사용자가 페이지를 구성하는 백오피스
                     </p>
                     <p className="mt-1 text-sm text-gray-700">
-                      Next.js, TypeScript, Styled-Components, TanStack Query,
-                      Zustand
+                      Next.js, React, TypeScript, Styled-Components, TanStack
+                      Query, Zustand
                     </p>
                   </div>
                   <ul className="ml-3 mt-3 list-inside list-disc space-y-2 text-sm text-gray-700 sm:text-base">
@@ -428,17 +349,101 @@ const AboutPage = () => {
           <h2 className="mb-3 break-words text-xl font-semibold text-gray-900 sm:mb-4 sm:text-2xl">
             Other Experience
           </h2>
-          <ul className="mb-6 list-inside list-disc text-sm text-gray-700 sm:mb-8 sm:text-base">
-            <li className="break-words">
-              <Link
-                href="https://github.com/hoseungme/opensources/blob/main/ko.md"
-                className="text-blue-600 hover:underline"
-              >
-                오픈소스 프로젝트
-              </Link>
-              개발 및 공개
-            </li>
-          </ul>
+
+          <div className="mb-6 grid grid-cols-1 gap-6 sm:mb-8 sm:grid-cols-2">
+            {/* Side Project 1 */}
+            <div className="rounded-lg border border-gray-200 p-6">
+              <div className="border-l-4 border-blue-400 pl-4">
+                <h4 className="break-words text-base font-medium text-gray-800 sm:text-lg">
+                  NLog
+                </h4>
+                <p className="mt-1 text-sm italic text-gray-500">
+                  개인 기술 블로그 플랫폼
+                </p>
+                <p className="mt-1 text-sm text-gray-600">2023.03 - 2023.06</p>
+                <p className="mt-1 text-sm text-gray-700">
+                  <span className="font-medium">기술 스택: </span>Next.js,
+                  React, TypeScript, TailwindCSS
+                </p>
+              </div>
+              <div className="mt-3 flex gap-4 text-sm text-gray-700">
+                <Link
+                  href="https://nlog-ten.vercel.app/article"
+                  className="text-blue-500 hover:underline"
+                >
+                  Demo
+                </Link>
+                <Link
+                  href="https://github.com/kimnamsun/blog"
+                  className="text-blue-500 hover:underline"
+                >
+                  GitHub
+                </Link>
+              </div>
+            </div>
+
+            {/* Side Project 2 */}
+            <div className="rounded-lg border border-gray-200 p-6">
+              <div className="border-l-4 border-blue-400 pl-4">
+                <h4 className="break-words text-base font-medium text-gray-800 sm:text-lg">
+                  Random Pokemon Card
+                </h4>
+                <p className="mt-1 text-sm italic text-gray-500">
+                  three.js로 구현한 랜덤 포켓몬 카드 뽑기 토이프로젝트
+                </p>
+                <p className="mt-1 text-sm text-gray-600">2025.03</p>
+                <p className="mt-1 text-sm text-gray-700">
+                  <span className="font-medium">사용된 기술: </span>Next.js,
+                  React, TypeScript, Zustand
+                </p>
+              </div>
+              <div className="mt-3 flex gap-4 text-sm text-gray-700">
+                <Link
+                  href="https://random-pokemon-card.vercel.app"
+                  className="text-blue-500 hover:underline"
+                >
+                  Demo
+                </Link>
+                <Link
+                  href="https://github.com/kimnamsun/random-pokemon-card"
+                  className="text-blue-500 hover:underline"
+                >
+                  GitHub
+                </Link>
+              </div>
+            </div>
+
+            {/* Side Project 3 */}
+            {/* <div className="rounded-lg border border-gray-200 p-6">
+              <div className="border-l-4 border-blue-400 pl-4">
+                <h4 className="break-words text-base font-medium text-gray-800 sm:text-lg">
+                  Buooy
+                </h4>
+                <p className="mt-1 text-sm italic text-gray-500">
+                  프리다이빙, 스쿠버다이빙, 서핑 등 해양 스포츠 모임 플랫폼
+                </p>
+                <p className="mt-1 text-sm text-gray-600">2025.03</p>
+                <p className="mt-1 text-sm text-gray-700">
+                  <span className="font-medium">사용된 기술: </span>Next.js,
+                  React, TypeScript, Zustand
+                </p>
+              </div>
+              <div className="mt-3 flex gap-4 text-sm text-gray-700">
+                <Link
+                  href="https://random-pokemon-card.vercel.app"
+                  className="text-blue-500 hover:underline"
+                >
+                  Demo
+                </Link>
+                <Link
+                  href="https://github.com/kimnamsun/random-pokemon-card"
+                  className="text-blue-500 hover:underline"
+                >
+                  GitHub
+                </Link>
+              </div>
+            </div> */}
+          </div>
         </div>
       </div>
     </main>
