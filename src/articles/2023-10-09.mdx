@@ -1,0 +1,541 @@
+---
+title: "nx로 모노레포 구축하기 (삽질기록)"
+date: 2023-10-09
+---
+
+> nx로 모노레포를 구축해볼 수 있는 기회가 있어서 해보았다. 정보를 얻기 위해서는 적절하지 않은 글이며, 내가 어떤 삽질을 했는지에 대한 회고에 가까운 글이다.
+
+## 모노레포를 구축하게 된 계기
+
+vue로 된 기존 레거시 프로젝트를 유지보수하게 되면서, 공통화가 전혀 안되어있는 코드 무더기를 발견하게 되었다.  
+예를 들면 이런 식이였다.
+레거시 프로젝트는 한 페이지에 3~4개 가량의 메뉴가 존재했고, 그 메뉴들은 각각의 모듈로서 동작하며 각각 다른 repository로 분리되어있었다.
+
+lib 폴더 내에는 모듈에서 사용하는 util성 코드들이 있었는데, 가령 date와 관련된 코드들이 있는 `date.js`는 각 모듈에서 공통적으로 사용하는 코드이다보니, 각 모듈에서 복사 붙여넣기를 통해 사용하고 있었다.
+
+내부적인 커뮤니케이션을 통해 공통화할 코드를 뽑아내고, 그 코드를 공통 모듈로 분리하여 사용하자는 의견이 나왔다.  
+그렇게 해서, 테스트로 `아주 작은 모노레포` 만들기를 시작하게 되었다.
+
+## 조사한 것들
+
+- 다른 라이브러리들은 어떤방식으로 구성했는가?
+- 모노레포 빌드시스템
+
+- 번들러
+
+- 테스팅툴
+
+- 문서화 어떻게 할 것인지
+
+> 모노레포를 구성하기 전에 필요한 사전조사들을 위와 같이 진행했고, 같이 테스트를 진행하기로 한 팀원분은 turborepo, 나는 nx를 선택해 테스트를 진행하기로 했다.
+
+## nx를 선택한 이유
+
+- turborepo에 비해 풍부한 생태계
+- 분산 캐싱 (turborepo, nx 둘다 지원)
+- 초기 모노레포 개발 환경 구축 비용을 크게 줄여줌.
+- 의존성 그래프 시각화 기능 (turborepo, nx 둘다 지원)
+
+## nx로 모노레포 구축해보기
+
+- 구축환경 : `nx`, `vite`, `pnpm`
+
+### 테스트해보려고 하는 것.
+
+- nx, vite, pnpm으로 모노레포를 구성한다.
+
+- lib 내의 common성 util 코드를 export하는 common 패키지와 vue 컴포넌트를 export하는 vue 패키지로 구성한다.
+
+- 만든 공통모듈을 npm에 publish 한다.
+
+- publish한 공통모듈을 vue 프로젝트 내에서 import해서 사용해본다.
+
+- changeset을 통해 버전관리를 해본다.
+- vitest로 테스트코드를 작성해본다.
+
+## pnpm 설치
+
+```jsx
+npm install -g pnpm
+
+yarn global add pnpm
+```
+
+## nx로 프로젝트 생성하기
+
+```jsx
+npx create-nx-workspace --pm pnpm
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/8d39d51d-9ab0-44d2-9ee5-cc568488e5d3/image.png)
+
+### 🚨 계속 nx cloud 설정이 안되어있다는 에러.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/7d6fd7c7-4e7e-4dbf-9612-dc5d5459bea7/image.png)
+
+-> ✅ Enable distributed caching to make your CI faster · No 를 선택하니까 nx cloud를 자동으로 설치하지 않았음.
+
+## 패키지 생성하기
+
+```jsx
+
+nx g npm-package packages/common
+
+nx g npm-package packages/vue
+
+```
+
+### 🚨 nx command를 사용할 수 없는 에러
+
+![](https://velog.velcdn.com/images/nsunny0908/post/b72f8a78-b787-4791-bc53-ab7a4b73649a/image.png)
+
+-> ✅ nx global 설치
+
+```
+yarn global add nx
+```
+
+## package.json에 workspaces 설정
+
+```json
+{
+  "name": "@core-monorepo/source",
+  "version": "0.0.0",
+  "license": "MIT",
+  "workspaces": ["packages/*"],
+  ...
+}
+```
+
+그러면 폴더구조는 이렇게 됨.
+
+```
+├── packages
+│   ├── common
+│   │   ├── CHANGELOG.md
+│   │   ├── dist
+│   │   ├── node_modules
+│   │   ├── package.json
+│   │   ├── pnpm-lock.yaml
+│   │   ├── project.json
+│   │   ├── src
+│   │   ├── tsconfig.json
+│   │   └── vite.config.js
+│   └── vue
+│       ├── CHANGELOG.md
+│       ├── dist
+│       ├── node_modules
+│       ├── package.json
+│       ├── pnpm-lock.yaml
+│       ├── project.json
+│       ├── src
+│       ├── tsconfig.json
+│       └── vite.config.ts
+```
+
+## common 패키지 작성
+
+### dependency 추가
+
+```jsx
+pnpm add dayjs
+```
+
+### vite.config.js 작성
+
+```js
+import { defineConfig } from "vite";
+import path from "path";
+import dts from "vite-plugin-dts";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+export default defineConfig({
+  plugins: [
+    // TypeScript 소스 코드에서 자동으로 타입 정의 파일 생성.
+    dts(),
+    // tsconfig.json 파일에서 정의한 경로 별칭을 사용해 모듈 경로를 해석
+    tsconfigPaths(),
+  ],
+  build: {
+    lib: {
+      // 진입점 파일 경로를 지정
+      entry: path.resolve(__dirname, "src/index.ts"),
+      name: "@core-monorepo/common",
+      // commonjs와 ES 모듈을 빌드
+      formats: ["es", "cjs"],
+      fileName: (format) => `core-common.${format}.js`,
+    },
+  },
+});
+```
+
+### package.json에 script 작성
+
+```json
+{
+  "scripts": {
+    "build": "tsc && vite build"
+  }
+}
+```
+
+### vite로 build
+
+```
+pnpm run build
+```
+
+## vue 패키지 작성
+
+### package.json에 common 패키지 dependency 추가
+
+- vue 컴포넌트에서 common 패키지 내의 util 코드를 사용하기 위해 common 패키지를 dependency로 추가해준다.
+
+```json
+{
+  "dependencies": {
+    "@nx-monorepo/common": "../common/dist"
+  }
+}
+```
+
+-> npm publish 이후에 수정해줄 것.
+
+### vite.config.js 작성
+
+```js
+import { defineConfig } from "vite";
+import path from "path";
+import dts from "vite-plugin-dts";
+import tsconfigPaths from "vite-tsconfig-paths";
+
+export default defineConfig({
+  plugins: [
+    dts({
+      insertTypesEntry: true, // 컴포넌트 타입 생성
+    }),
+    tsconfigPaths(),
+  ],
+  resolve: {
+    alias: {
+      vue: "vue/dist/vue.esm-bundler.js",
+    },
+  },
+  build: {
+    lib: {
+      entry: path.resolve(__dirname, "src/index.ts"),
+      name: "@core-monorepo/vue",
+      formats: ["es", "cjs"],
+      fileName: (format) => `core-vue.${format}.js`,
+    },
+  },
+  rollupOptions: {
+    external: ["vue"],
+    output: {
+      globals: {
+        vue: "Vue",
+      },
+    },
+  },
+});
+```
+
+### 🚨 vue 패키지를 빌드하기 위한 간단한 vue 컴포넌트를 작성했는데, index.ts에서 export가 안됐다.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/49b699f0-801c-44fa-a7da-4c934a75443e/image.png)
+
+-> ✅ 문제는 `env` 파일의 부재였다.
+
+### env 파일 생성
+
+```jsx
+declare module '*.vue' {
+  import Vue from 'vue';
+  export default Vue;
+}
+```
+
+### shims-vue.d.ts
+
+그러면 이 파일이 뭔지에 대해 알아보자.
+
+> TypeScript 프로젝트에서 Vue.js 단일 파일 컴포넌트(**`.vue`** 파일)를 사용할 때 필요한 TypeScript 타입 정의 파일
+
+이 파일을 사용하면 Vue.js 컴포넌트를 타입 안전하게 가져와서 사용할 수 있다.
+
+그래서 왜쓰는데..?
+
+보통 **`.vue`** 파일에는 HTML 템플릿, JavaScript 코드, 그리고 CSS 스타일이 포함되어 있는데 이렇게 세 유형이 함께 있는 파일을 TypeScript에서 정확하게 타입 검사하기는 어렵기 때문에 **`shims-vue.d.ts`** 파일이 ts 환경에서 사용하기 쉽도록 도와준다.
+
+### 🚨 vue package를 vite로 build할 때 parse error가 났다.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/3761d100-2bbc-46cc-8aa5-bfe7e0ae0381/image.png)
+
+-> ✅ vite.config.js에 vite-plugin-vue2의 `createVuePlugin`를 import 해줌.
+
+```js
+import { createVuePlugin as vue } from 'vite-plugin-vue2';
+
+export default defineConfig({
+  plugins: [
+    vue(),
+    dts({
+      insertTypesEntry: true,
+    }),
+    tsconfigPaths(),
+  ],
+  ...
+});
+```
+
+### createVuePlugin 추가해줘야하는 이유
+
+**`vite-plugin-vue2`** : Vue 2를 지원하는 Vite 플러그인  
+**`vite-plugin-vue2`** 를 사용하려면 해당 플러그인에서 제공하는 **`createVuePlugin`** 함수를 **`vite.config.js`** 파일에서 가져와야 한다.  
+이 함수는 Vue 2 를 위한 Vite 플러그인을 생성하는 데 사용된다.
+
+### 🚨 Rollup failed to resolve import "@nx-monorepo/common"
+
+![](https://velog.velcdn.com/images/nsunny0908/post/40d83d2d-5d51-4c5e-9d58-8599ff5aee5f/image.png)
+
+-> ✅ vite.config.js 에 resolve.alias를 추가해준다.
+
+```js
+export default defineConfig({
+ ...
+  resolve: {
+    alias: {
+      vue: 'vue/dist/vue.esm-bundler.js',
+      '@nx-monorepo/common': path.resolve(__dirname, '../common/dist'),
+    },
+  },
+});
+```
+
+### illegal operation on a directory
+
+![](https://velog.velcdn.com/images/nsunny0908/post/90a64357-cd58-47dd-a1a4-d43489cf854f/image.png)
+
+-> ✅ dist에 대한 경로가 잘못되어있었다.
+
+```js
+export default defineConfig({
+ ...
+  resolve: {
+    alias: {
+      vue: 'vue/dist/vue.esm-bundler.js',
+      // dist 경로 수정
+      '@nx-monorepo/common': path.resolve(__dirname, '../common'),
+    },
+  },
+});
+```
+
+## npm publish
+
+### npm login
+
+```jsx
+npm login
+```
+
+### 🚨 403 Forbidden Permission denied
+
+-> ✅ github token받아야함
+
+1. 오른쪽 상단에 있는 사용자 이미지를 클릭하고 "Settings"를 선택.
+   ![](https://velog.velcdn.com/images/nsunny0908/post/39cdefc5-b772-4597-919b-03d17781f588/image.png)
+
+2. 왼쪽 메뉴에서 "Developer settings" 아래에 있는 "Personal access tokens"를 선택
+
+![](https://velog.velcdn.com/images/nsunny0908/post/ea5361cd-9ec0-450d-b83e-c46edfca9434/image.png)
+
+3. "Generate token"을 클릭하여 새 토큰을 생성. "write:packages"와 "read:packages" 선택.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/e0f24f9f-2c48-46d1-9231-c9bb538beb21/image.png)
+
+4. npm config set
+
+```jsx
+npm config set //npm.pkg.github.com/:_authToken=<YOUR_TOKEN>
+```
+
+### 🚨 402 Payment Required - You must sign up for private packages
+
+- package.json 에서 "private": false 를 추가해도 여전히 같은 에러가 떴다.
+
+- npm logout 후에 다시 해도 여전했음.
+
+-> ✅ publish 시에 --access public 옵션을 추가해준다.
+
+```jsx
+npm publish --access=public
+```
+
+### 🚨 404 Not Found - Scope not found
+
+-> ✅ 오가니제이션 추가
+
+![](https://velog.velcdn.com/images/nsunny0908/post/5a26f63b-c597-498a-a28d-14b7f9b7709a/image.png)
+
+-> 드디어 성공! 🎉
+
+## vue project에서 core-monorepo/vue 패키지를 import해서 사용하기
+
+- publish된 vue 패키지를 vue 프로젝트에서 import해서 사용해보자.
+- vue package에서 common package의 로컬 경로를 바라보고 있어서, 이 부분을 실제 publish된 패키지를 바라보도록 수정해준 뒤 다시 publish 해주었다.
+
+### 🚨 Module not found: Error: Can't resolve '@core-monorepo/vue'
+
+- build된 결과물도 뒤지고, index.ts를 수정해보기도 하고 갖은 삽질을 다했는데 계속 같은 에러가 떴는데 엄청 허무하게 해결됐다.
+
+-> ✅ rollupOptions의 hierarchy가 잘못되어있었다.
+
+```js
+export default defineConfig({
+  build: {
+    lib: {
+      entry: path.resolve(__dirname, "src/index.ts"),
+      name: "@core-monorepo/vue",
+      formats: ["es", "cjs"],
+      fileName: (format) => `core-vue.${format}.js`,
+    },
+  },
+  rollupOptions: {
+    external: ["vue", "@core-monorepo/common"],
+    output: {
+      globals: {
+        vue: "Vue",
+      },
+    },
+  },
+});
+```
+
+```js
+export default defineConfig({
+  build: {
+    lib: {
+      ...
+    },
+    rollupOptions: {
+      external: ['vue', '@core-monorepo/common'],
+      output: {
+        globals: {
+          vue: 'Vue',
+        },
+      },
+    },
+  },
+});
+```
+
+- vite.config 파일을 js로 작성했더니 발견하지 못했던 아주 사소한 에러였다. 🫨
+
+## changeset 으로 버전관리하기
+
+### 1. pnpm-workspace.yaml 파일 생성
+
+```yaml
+packages:
+  - packages/* # 워크스페이스 패키지의 경로
+```
+
+### 2. **@changesets/cli 설치**
+
+- 워크스페이스 패키지로 changesets 설치
+
+```
+pnpm add -w --save-dev @changesets/cli
+```
+
+### `-w` 옵션
+
+- **`--workspace-root`** 플래그사용 여부에 대한 옵션
+- 일반적으로 nx 모노레포에서는 워크스페이스 루트에서 패키지를 설치하는 것이 좋다.  
+  워크스페이스 내의 모든 프로젝트가 공통 패키지를 공유할 수 있으며, 패키지 간의 종속성 충돌을 방지할 수 있다.
+
+### 3. changeset init
+
+```
+npx changeset init
+```
+
+### 4. 변경사항 생성 후, npx changeset
+
+```
+npx changeset
+```
+
+- 변경할 패키지, 버전 등 선택 (선택할때 스페이스바로 선택해야한다.)
+
+### 5. changeset version
+
+```
+npx changeset version
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/7102e7df-60d4-480f-9967-c459cd3af7fb/image.png)
+
+## vitest로 테스트코드 작성하기
+
+### 1. vitest 설치
+
+```
+pnpm add -w --save-dev vitest
+```
+
+### 2. vitest.config.ts 작성
+
+```jsx
+import vue2 from "@vitejs/plugin-vue2";
+import { fileURLToPath } from "node:url";
+import path from "path";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  plugins: [vue2()],
+  // test 코드 내에서 @ alias 사용을 위해 셋팅
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  test: {
+    // 브라우저 환경에서 테스트하는 것을 명시
+    environment: "jsdom",
+    root: fileURLToPath(new URL("./", import.meta.url)),
+  },
+});
+```
+
+### 3. jsdom 설치
+
+```
+pnpm add -w -D jsdom
+```
+
+### ✅ vue 버전이 2.7.0 미만이라면, vue, vue-template-compiler 버전 업데이트 해준다.
+
+## docusaurus로 문서화
+
+### package 경로 밑에서 docusaurus 프로젝트 생성
+
+```jsx
+npx create-docusaurus
+```
+
+→ ✅ node 버전과 npm 버전이 맞지 않는다는 오류가 뜨면 버전 업데이트를 해주면 된다.
+
+## 끝!
+
+- 두서 없고 미흡한 글이지만, 많은 삽질 끝에 결국 모노레포 구축에 성공한 걸 기념(?)으로나마 글로 남기고 싶었다.
+
+## 참고자료
+
+https://if1live.github.io/posts/escape-from-jest-jest-is-slow/  
+https://velog.io/@saeeng/VITE-VITEST-migrate-from-Jest  
+[https://velog.io/@gu2144/Turborepo로-모노레포-개발-경험-넓혀보기](https://velog.io/@gu2144/Turborepo%EB%A1%9C-%EB%AA%A8%EB%85%B8%EB%A0%88%ED%8F%AC-%EA%B0%9C%EB%B0%9C-%EA%B2%BD%ED%97%98-%EB%84%93%ED%98%80%EB%B3%B4%EA%B8%B0)  
+https://github.com/sungkwangkim/yarn-berry-test/tree/8-final  
+https://engineering.linecorp.com/ko/blog/monorepo-with-turborepo  
+https://d2.naver.com/helloworld/7553804

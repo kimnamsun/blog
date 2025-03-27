@@ -1,0 +1,110 @@
+---
+title: "mac에 rocky linux 설치하기"
+date: 2023-10-01
+---
+
+> 설치환경 : `macOS Big Sur 11.6`, `VMware Fusion`
+
+## VMware Fusion, Rocky Linux iso 파일 다운로드
+
+- [VMware Fusion](https://www.vmware.com/kr/products/fusion.html)
+
+  - 나는 그냥 무료 평가판을 사용했다.
+
+- [Rocky Linux](https://rockylinux.org/ko/download)
+  ![](https://velog.velcdn.com/images/nsunny0908/post/a2a1ecad-a1e5-4769-a28d-96ea34206d0a/image.png)
+
+## VMware Fusion 실행
+
+### 1. install from disc or image 클릭
+
+![](https://velog.velcdn.com/images/nsunny0908/post/51f40359-1582-4355-a0b7-316c56bb953b/image.png)
+
+### 2. 받은 iso 파일 업로드
+
+![](https://velog.velcdn.com/images/nsunny0908/post/b17601a5-7ef4-4fcf-9dda-0579d4482bcf/image.png)
+
+### 3. Linux -> Red Hat Enterprise Linux 9 64-bit Arm 선택
+
+![](https://velog.velcdn.com/images/nsunny0908/post/79aaa4b4-4032-47b1-9439-cd326e7afb2b/image.png)
+
+### 4. Install Rocky Linux 9.2 선택
+
+![](https://velog.velcdn.com/images/nsunny0908/post/f8358b86-57f3-4637-9de2-0cdcc6f5195e/image.png)
+
+### 5. root 비밀번호를 설정하고 설치 시작 클릭
+
+- root 비밀번호를 반드시 기억할 것.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/97ff4d1e-30fc-4c29-9a56-fff925a18af8/image.png)
+
+### 6. 시스템 재시작 클릭
+
+![](https://velog.velcdn.com/images/nsunny0908/post/a080651a-2f8d-4557-b594-14cab8b78e16/image.png)
+
+## 재시작 후 텍스트 모드로밖에 진입이 안되는 문제 상황
+
+### 1. 사용가능한 패키지 그룹 확인하기
+
+```bash
+dnf group list
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/eafffe0e-b430-49a5-8c08-d2e2def2ccf7/image.png)
+
+### 2. GUI 패키지 그룹 설치
+
+```bash
+dnf groupinstall "Server with GUI"
+
+OR
+
+dnf groupinstall "Workstation"
+```
+
+### 3. 부팅 설정을 graphical로 변경
+
+```bash
+systemctl set-default graphical.target
+```
+
+- 기본 부팅 설정을 확인하고 싶다면 아래 명령어로 확인할 수 있다.
+
+  ```bash
+  systemctl get-default
+  ```
+
+### 4. 재부팅
+
+```bash
+reboot
+```
+
+## 한글 설정하기
+
+### 1. 변경가능한 locale 확인
+
+```bash
+locale -a
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/f3a591b8-fe38-43c7-8e3b-2aa9f40a3900/image.png)
+
+### 2. locale 변경
+
+```bash
+localectl set-locale LANG=ko_KR.utf8
+```
+
+- 변경된 locale 확인
+
+  ```bash
+  localectl
+  ```
+
+  ![](image.png)
+
+## 참고문서
+
+https://velog.io/@dojun527/Rocky-Linux-%EC%84%A4%EC%B9%98  
+https://ko.linux-console.net/?p=444

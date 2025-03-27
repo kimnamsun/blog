@@ -1,0 +1,145 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css");
+
+@keyframes progress {
+  to {
+    width: 100%;
+  }
+}
+
+@layer components {
+  .markdown-body {
+    @apply box-border w-full space-y-8 text-gray-900 sm:space-y-10 dark:text-gray-100;
+
+    /* 링크 */
+    a {
+      @apply text-blue-600 underline underline-offset-4 transition-colors hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300;
+    }
+
+    /* 제목 */
+    h1 {
+      @apply mb-6 mt-10 text-2xl font-extrabold tracking-tight text-gray-900 sm:mb-8 sm:mt-12 sm:text-3xl dark:text-white;
+    }
+    h2 {
+      @apply mb-4 mt-8 text-xl font-bold text-gray-800 sm:mb-6 sm:mt-10 sm:text-2xl dark:text-gray-200;
+    }
+    h3 {
+      @apply mb-3 mt-6 text-lg font-semibold text-gray-700 sm:mb-4 sm:mt-8 sm:text-xl dark:text-gray-300;
+    }
+
+    /* 본문 */
+    p {
+      @apply text-sm leading-6 text-gray-700 sm:text-base sm:leading-7 dark:text-gray-300;
+    }
+
+    /* 강조 */
+    strong {
+      @apply font-bold text-gray-900 dark:text-white;
+    }
+
+    /* 리스트 */
+    ul {
+      @apply ml-5 space-y-2 sm:ml-6 sm:space-y-3;
+      list-style-type: disc;
+    }
+    ol {
+      @apply ml-5 space-y-2 sm:ml-6 sm:space-y-3;
+      list-style-type: decimal;
+    }
+    li {
+      @apply text-sm leading-6 text-gray-700 sm:text-base sm:leading-7 dark:text-gray-300;
+    }
+    li ul,
+    li ol {
+      @apply ml-5 mt-2 sm:ml-6;
+    }
+
+    /* 이미지 */
+    img {
+      @apply mx-auto my-6 max-w-full rounded-lg sm:my-8;
+    }
+
+    /* 인용구 */
+    blockquote {
+      @apply my-6 border-l-4 border-gray-300 pl-4 italic text-gray-600 sm:my-8 sm:pl-6 dark:border-gray-600 dark:text-gray-400;
+    }
+
+    /* details */
+    details {
+      @apply my-6 rounded-lg border border-gray-200 p-3 sm:my-8 sm:p-4 dark:border-gray-700;
+      summary {
+        @apply cursor-pointer font-semibold text-gray-800 dark:text-gray-200;
+      }
+      p {
+        @apply mt-2 text-sm text-gray-700 sm:text-base dark:text-gray-300;
+      }
+    }
+
+    /* 테이블 */
+    table {
+      @apply my-6 w-full border-collapse rounded-lg border border-gray-200 sm:my-8 dark:border-gray-700;
+      td,
+      th {
+        @apply border border-gray-200 p-3 text-sm text-gray-700 dark:border-gray-700 dark:text-gray-300;
+      }
+      th {
+        @apply bg-gray-100 font-semibold text-gray-800 dark:bg-gray-800 dark:text-gray-200;
+      }
+    }
+
+    /* 인라인 코드 */
+    code:not(pre code) {
+      @apply inline-block whitespace-normal break-all rounded bg-blue-100 p-1 px-2 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-200;
+      &::after,
+      &::before {
+        @apply content-none;
+      }
+    }
+
+    /* 코드 블록 */
+    pre {
+      @apply my-6 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 text-xs sm:my-8 dark:border-gray-700 dark:bg-gray-900;
+      code {
+        @apply font-mono;
+        color: var(--shiki-light);
+      }
+      code span {
+        color: var(--shiki-light);
+      }
+      .dark & code {
+        color: var(--shiki-dark);
+      }
+      .dark & code span {
+        color: var(--shiki-dark);
+      }
+      code > span {
+        @apply pl-[1.2rem] pr-4;
+      }
+      code[data-line-numbers] {
+        counter-reset: line;
+      }
+      code[data-line-numbers] > [data-line]::before {
+        counter-increment: line;
+        content: counter(line);
+        display: inline-block;
+        width: 1.5rem;
+        margin-right: 1rem;
+        text-align: right;
+        color: gray;
+        font-size: 0.75rem;
+      }
+      code[data-line-numbers-max-digits="2"] > [data-line]::before {
+        width: 1.5rem;
+      }
+      code[data-line-numbers-max-digits="3"] > [data-line]::before {
+        width: 2rem;
+      }
+      [data-highlighted-line] {
+        @apply border-b-0 border-l-2 border-t-0 border-red-500 bg-gray-100/50 pl-[calc(1.2rem-2px)] dark:bg-gray-800/50;
+      }
+    }
+  }
+}

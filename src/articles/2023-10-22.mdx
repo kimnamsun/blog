@@ -1,0 +1,95 @@
+---
+title: "yalc: npm publish없이 패키지를 테스트할 수 있는 방법"
+date: 2023-10-22
+---
+
+나는 현재 프로젝트의 공통 모듈을 개발하고 있다.  
+그 공통 모듈은 common에 해당하는 utils성 함수와 공통 UI 컴포넌트로 나뉘어져있다.  
+UI 컴포넌트의 경우 빈번한 수정이 일어나고, 그 때마다 npm에 publish해서 다시 해당 패키지를 사용하는 프로젝트에서 install 하기가 여간 번거로운 것이 아니다.
+
+npm 패키지를 개발하는 경우 패키지를 npm에 publish하지 않고 이 패키지를 디펜던시로 import 해서 사용하고 있는 프로젝트에서 테스트해보고싶을 때 어떻게 해야할까?
+
+`yalc`가 해결방법이 될 수 있다.  
+yalc는 로컬 디펜던시를 로컬 저장소에 게시하고 종속 프로젝트에서 사용할 수 있도록 한다.
+
+그럼 yalc를 사용해보도록 하자.  
+npm 패키지를 package a라고 하고, package a를 import해서 사용하는 package b가 있다고 가정하고 진행해보도록 하자.
+
+## yalc 글로벌로 설치하기
+
+```
+[package a] $ pnpm i -g yalc
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/3056f1a4-8aa2-4161-98f1-853d78540fdd/image.png)
+
+## yalc publish
+
+```
+[package a] $ yalc publish
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/391d892c-6df2-41c6-ae43-ed3c04bf2e7c/image.png)
+
+## yalc add
+
+해당 패키지를 디펜던시로 가지고 있는 프로젝트에서 yalc add
+
+```
+[package b] $ yalc add package-a
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/0286562e-0e2f-41ee-bc70-7069383c4688/image.png)
+
+## dependency install
+
+```
+[package b] $ pnpm i
+
+OR
+
+[package b] $ npm i
+
+OR
+
+[package b] $ yarn
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/304b2e70-d62b-4626-b61a-d76e399a31cd/image.png)
+
+package b의 package.json을 확인해보면, package a의 경로가 변경된 것을 확인할 수 있다.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/6439fb1e-c31e-45d6-af66-376cdf6fef1b/image.png)
+
+## 변경사항을 만든다.
+
+`@core-monorepo/vue` 패키지의 `Today.vue` 컴포넌트의 색을 blue에서 red로 변경해보았다.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/cc566e6f-6166-431a-8e1a-605e29c2aeca/image.png)
+
+## yalc push
+
+```
+[package a] $ yalc push --sig
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/b7eebfe6-4ddc-470c-ac13-1f0a24686291/image.png)
+
+### --sig
+
+해시 서명을 패키지 버전에 사용하는 옵션.  
+서명 사용 시에 변경된 파일에 대해 빠르게 감지 가능.  
+파일 내용이 변경되면 서명도 변경되기 때문에 패키지 버전간의 차이를 더 쉽게 파악 가능.  
+→ 버전 간의 변경 추적시에 도움이 된다.
+
+## yalc update
+
+```
+[package b] $ yalc update package-a
+```
+
+![](https://velog.velcdn.com/images/nsunny0908/post/1cbf7a93-0e53-4d80-ad35-6da58ea6b0ff/image.png)
+
+확인해보면, npm publish 를 하지 않아도 변경사항이 반영된 것을 확인할 수 있다.
+
+![](https://velog.velcdn.com/images/nsunny0908/post/79028ebb-adcb-4b70-abce-5c06825948a2/image.png)
