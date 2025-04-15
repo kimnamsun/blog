@@ -1,213 +1,441 @@
 ---
-title: "Zustand로 선언적 모달 관리 hook 구현하기"
-date: 2024-10-30
-show: true
+title: "Full Page Scroll 컴포넌트 구현하기 (feat. 심플하게 생각하기)"
+date: 2025-03-11
+show: false
 ---
 
-## 기존 Antd Modal의 문제점
+👩🏻‍💻 요구사항: 컨텐츠들이 쭉 있고, 스크롤을 내리다 끝 쯤에 도달하면 한 페이지씩 화면이 전환되는 형태의 인터랙션을 구현하고 싶어요!
 
-회사 프로젝트 A에서는 Ant Design(antd)의 Modal 컴포넌트를 사용해 다양한 팝업을 관리했다.
-하지만 다음과 같은 문제로 인해 기존 방식이 한계에 부딪혔다.
+## Full Page Scroll이란?
 
-1. 핸들러 전달 이슈
+Full Page Scroll은 웹사이트에서 스크롤 시 한 페이지 단위로 전체 화면이 넘어가는 패턴이다.  
+보통 포트폴리오, 이벤트 랜딩 페이지 등에서 자주 보이며, 사용자 시선을 자연스럽게 끌 수 있어 몰입도 높은 UI 연출이 가능하다.
 
-- handler 가 제대로 전달 되지 않음.
+## 1차 시도: scroll 이벤트 기반 구현
 
-2. QueryProvider 문제
-
-- 모달 내부에서 react-query의 QueryClient를 사용한 API 호출이 제대로 동작하지 않았다.
-
-이러한 문제를 해결하기 위해 Zustand를 사용한 useModal 훅을 구현하고, Antd Modal을 래핑한 커스텀 모달 컴포넌트를 도입했다.
-
-## 왜 Zustand인가?
-
-- Context보다 간단하면서도, 전역 상태 관리를 빠르게 구성할 수 있어서 선택했다.
-  모달처럼 앱 전역에서 필요로 하는 UI 상태는 전역으로 두는 게 명확하고 유지보수에 유리하다.
-
-## Zustand로 useModal 훅 구현
-
-`stores/useModal.ts`
-
-```typescript
-import { ReactNode } from "react";
-import { create } from "zustand";
-
-type Modal = {
-  element: ReactNode;
-  id?: string;
-};
-
-type ModalStore = {
-  modals: Modal[];
-  open: (modal: Modal) => void;
-  close: (id?: string | string[]) => void;
-};
-```
-
-### 구조
-
-- modals: 현재 열려 있는 모달들의 배열.
-- open: 모달을 열 때 호출. 동일한 ID의 모달은 중복되지 않도록 먼저 제거 후 추가한다.
-- close: 특정 ID 또는 전체 모달을 닫을 수 있다.
+처음엔 직관적으로 `wheel`, `touch` 이벤트를 기반으로 구현했다.  
+각 페이지 섹션의 높이를 기준으로 현재 페이지를 계산하고, 스크롤 방향에 따라 페이지를 전환한다.
 
 ```tsx
-const useModal = create<ModalStore>((set) => ({
-  modals: [],
-  open: ({ element, id }: Modal) => {
-    if (!id) {
-      console.error("모달 id가 존재하지 않습니다.");
+import React, { ReactNode } from "react";
+import { useEffect, useRef } from "react";
+import styles from "./index.module.css";
+
+const FullPageScroll = ({ children }: { children: ReactNode }) => {
+  const outerDivRef = useRef<HTMLDivElement>(null);
+  const currentPage = useRef(0);
+  const canScroll = useRef(true);
+  const oldTouchY = useRef(0);
+
+  const scrollDown = () => {
+    const pageHeight = outerDivRef.current?.children.item(0)?.clientHeight;
+
+    if (outerDivRef.current && pageHeight) {
+      outerDivRef.current.scrollTo({
+        top: pageHeight * (currentPage.current + 1),
+        left: 0,
+        behavior: "smooth",
+      });
+
+      canScroll.current = false;
+
+      setTimeout(() => {
+        canScroll.current = true;
+      }, 500);
+
+      if (outerDivRef.current.childElementCount - 1 > currentPage.current) {
+        currentPage.current++;
+      }
+    }
+  };
+
+  const scrollUp = () => {
+    const pageHeight = outerDivRef.current?.children.item(0)?.clientHeight;
+
+    if (outerDivRef.current && pageHeight) {
+      outerDivRef.current.scrollTo({
+        top: pageHeight * (currentPage.current - 1),
+        left: 0,
+        behavior: "smooth",
+      });
+
+      canScroll.current = false;
+
+      setTimeout(() => {
+        canScroll.current = true;
+      }, 500);
+
+      if (currentPage.current > 0) {
+        currentPage.current--;
+      }
+    }
+  };
+
+  const handleWheel = (e: WheelEvent) => {
+    e.preventDefault();
+
+    if (!canScroll.current) {
       return;
     }
-    set((state) => ({
-      modals: [
-        ...state.modals.filter((modal) => modal.id !== id),
-        { element, id },
-      ],
-    }));
-  },
-  close: (id?: string | string[]) => {
-    set((state) => {
-      if (Array.isArray(id)) {
-        return {
-          modals: state.modals.filter(
-            (modal) => modal.id && !id.includes(modal.id),
-          ),
-        };
-      }
-      if (id) {
-        return {
-          modals: state.modals.filter((modal) => modal.id !== id),
-        };
-      }
-      return { modals: [] };
-    });
-  },
-}));
 
-export default useModal;
-```
+    const { deltaY } = e;
 
-- ID가 없으면 에러 출력.
-- 동일 ID의 모달은 중복되지 않도록 필터링.
-- 모달을 배열로 관리하는 이유는 동시에 여러 개의 모달을 띄울 수 있게 하기 위함이다.
-- 다중 모달을 지원하지 않는다면 객체 형태로도 충분하지만, 확장성을 고려해 배열로 구성했다.
+    if (deltaY > 0 && outerDivRef.current) {
+      scrollDown();
+    } else if (deltaY < 0 && outerDivRef.current) {
+      scrollUp();
+    }
+  };
 
-## GlobalPopup
+  const handleScroll = (e: Event) => {
+    e.preventDefault();
+  };
 
-모달을 페이지 상단에 전역으로 렌더링할 수 있도록 GlobalPopup 컴포넌트를 만들었다.
+  const handleTouchDown = (e: TouchEvent) => {
+    oldTouchY.current = e.changedTouches.item(0)?.clientY || 0;
+  };
 
-`common/GlobalPopup.tsx`
+  const handleTouchUp = (e: TouchEvent) => {
+    const currentTouchY = e.changedTouches.item(0)?.clientY || 0;
+    const isScrollDown = oldTouchY.current - currentTouchY > 0;
 
-```tsx
-import { useEffect } from "react";
-import { useRouter } from "next/router";
-import useModal from "@/stores/useModal";
-
-const GlobalPopup = () => {
-  const { modals, close } = useModal();
-  const { pathname } = useRouter();
+    if (isScrollDown) {
+      scrollDown();
+    } else {
+      scrollUp();
+    }
+  };
 
   useEffect(() => {
-    close();
-  }, [pathname, close]);
+    const outer = outerDivRef.current;
 
-  return modals.map(({ element, id }) => <div key={id}>{element}</div>);
-};
+    if (!outer) {
+      return;
+    }
 
-export default GlobalPopup;
-```
+    outer.addEventListener("wheel", handleWheel);
+    outer.addEventListener("scroll", handleScroll);
+    outer.addEventListener("touchmove", handleScroll);
+    outer.addEventListener("touchstart", handleTouchDown);
+    outer.addEventListener("touchend", handleTouchUp);
 
-### 왜 필요했나?
+    return () => {
+      outer.removeEventListener("wheel", handleWheel);
+      outer.removeEventListener("scroll", handleScroll);
+      outer.removeEventListener("touchmove", handleScroll);
+      outer.removeEventListener("touchstart", handleTouchDown);
+      outer.removeEventListener("touchend", handleTouchUp);
+    };
+  }, []);
 
-- 모달을 렌더링할 위치를 통일시켜 관리 포인트를 하나로 만들고자 했다.
-- 라우팅 시점에 남아있는 모달을 자동으로 정리함으로써 UX 이슈(뒤에 있는 모달이 안 닫힘 등)를 방지할 수 있다.
-
-### Antd Modal을 래핑한 커스텀 Modal
-
-- antd의 Modal을 요구사항에 맞게 래핑하여 일관된 스타일과 기능을 적용할 수 있도록 커스터마이징했다.
-
-`common/Modal/index.tsx`
-
-```tsx
-import { CSSProperties, ReactNode } from "react";
-import { Modal as ModalBase, ModalProps } from "antd";
-import Header from "./Header";
-
-type Props = {
-  children: ReactNode;
-  style?: CSSProperties;
-  onClose?: () => void;
-} & ModalProps;
-
-const Modal = (props: Props) => {
-  const { title, children, width, style, footer, onClose, ...rest } = props;
   return (
-    <ModalBase
-      {...rest}
-      open
-      width={width}
-      onCancel={onClose}
-      footer={null}
-      title={<Header label={title} onClose={onClose} />}
-      closeIcon={null}
-      style={style}
-    >
+    <div ref={outerDivRef} className={styles["container"]}>
       {children}
-    </ModalBase>
+    </div>
   );
 };
 
-export default Modal;
+export default FullPageScroll;
 ```
 
-- Header는 모달 제목과 닫기 버튼을 통일된 UI로 제공하기 위해 만든 컴포넌트다.
-- `footer=null`로 모달 하단 버튼을 제거하고, 필요 시 children 영역에서 직접 커스터마이징할 수 있도록 했다.
+## 2차 시도: IntersectionObserver 도입
 
-## 작성해보자!
-
-### 1. 모달 Key 정의
-
-모달 ID는 상수로 관리한다.
-모달의 중복 및 추적을 쉽게 하기 위해 modalKey.ts에 명시적으로 작성한다.
-
-`constants/modalKey.ts`
-
-```ts
-export const USER_DETAIL_MODAL_KEY = "user_detail_modal_key";
-```
-
-### 2. 커스텀 Modal 사용
-
-title/width 등 필요한 속성을 지정할 수 있다.
+스크롤 감지를 수동 이벤트 핸들링 대신 브라우저에 위임하는 방식으로 전환했다.  
+IntersectionObserver를 활용해 특정 영역이 화면에 들어올 때 이벤트를 바인딩하고 해제하는 방식이다.
 
 ```tsx
-import useModal from "@/stores/useModal";
+import React, { ReactNode } from "react";
 
-const handleClose = () => {
-  close(USER_DETAIL_MODAL_KEY);
+import { useEffect, useRef, useCallback } from "react";
+
+import styles from "./index.module.css";
+
+const FullPageScroll = ({ children }: { children: ReactNode }) => {
+  const outerDivRef = useRef<HTMLDivElement>(null);
+  const currentPage = useRef(0);
+  const isScrolling = useRef(false);
+  const lastScrollTime = useRef(0);
+  const touchStartY = useRef(0);
+
+  const scrollToPage = useCallback((pageIndex: number) => {
+    const pageHeight = outerDivRef.current?.children[0]?.clientHeight;
+
+    if (!outerDivRef.current || !pageHeight) {
+      return;
+    }
+
+    const maxPages = outerDivRef.current.childElementCount - 1;
+
+    const newPage = Math.max(0, Math.min(pageIndex, maxPages));
+
+    outerDivRef.current.scrollTo({
+      top: pageHeight * newPage,
+      left: 0,
+      behavior: "smooth",
+    });
+
+    currentPage.current = newPage;
+    isScrolling.current = true;
+
+    setTimeout(() => {
+      isScrolling.current = false;
+    }, 600);
+  }, []);
+
+  const handleWheel = useCallback(
+    (e: WheelEvent) => {
+      e.preventDefault();
+
+      const now = Date.now();
+
+      if (isScrolling.current || now - lastScrollTime.current < 600) {
+        return;
+      }
+
+      const deltaY = e.deltaY;
+
+      if (deltaY > 50) {
+        scrollToPage(currentPage.current + 1);
+
+        lastScrollTime.current = now;
+      } else if (deltaY < -50) {
+        scrollToPage(currentPage.current - 1);
+
+        lastScrollTime.current = now;
+      }
+    },
+
+    [scrollToPage],
+  );
+
+  const handleTouchStart = useCallback((e: TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    e.preventDefault();
+  }, []);
+
+  const handleTouchEnd = useCallback(
+    (e: TouchEvent) => {
+      if (isScrolling.current) {
+        return;
+      }
+
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchStartY.current - touchEndY;
+
+      if (Math.abs(deltaY) > 50) {
+        if (deltaY > 0) {
+          scrollToPage(currentPage.current + 1);
+        } else {
+          scrollToPage(currentPage.current - 1);
+        }
+      }
+    },
+
+    [scrollToPage],
+  );
+
+  useEffect(() => {
+    const outer = outerDivRef.current;
+
+    if (!outer) {
+      return;
+    }
+
+    const addEventListeners = () => {
+      outer.addEventListener("wheel", handleWheel, { passive: false });
+      outer.addEventListener("touchstart", handleTouchStart, {
+        passive: false,
+      });
+
+      outer.addEventListener("touchmove", handleTouchMove, { passive: false });
+      outer.addEventListener("touchend", handleTouchEnd, { passive: false });
+    };
+
+    const removeEventListeners = () => {
+      outer.removeEventListener("wheel", handleWheel);
+      outer.removeEventListener("touchstart", handleTouchStart);
+      outer.removeEventListener("touchmove", handleTouchMove);
+      outer.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          addEventListeners();
+
+          scrollToPage(0);
+        } else {
+          removeEventListeners();
+        }
+      },
+
+      { threshold: 0.1 },
+    );
+
+    observer.observe(outer);
+
+    return () => {
+      observer.disconnect();
+      removeEventListeners();
+    };
+  }, [
+    handleWheel,
+    handleTouchStart,
+    handleTouchMove,
+    handleTouchEnd,
+    scrollToPage,
+  ]);
+
+  return (
+    <div ref={outerDivRef} className={styles["container"]}>
+      {children}
+    </div>
+  );
 };
+
+export default FullPageScroll;
+```
+
+### 왜 이렇게 바꿨나?
+
+- scroll 이벤트를 일일이 핸들링하는 방식은 성능에 불리하고, 컨텍스트를 구분하기 어렵다.
+- 특정 영역에서만 스크롤 전환 기능이 동작하도록 하고 싶었기 때문에, 해당 영역이 뷰포트에 진입했을 때만 이벤트를 연결하는 구조가 필요했다.
+- 필요할 때만 이벤트를 붙였다가 떼기 때문에 부작용을 줄일 수 있다.
+
+### 문제점
+
+이 방식은 전체 페이지가 Full Scroll 구조일 때는 잘 작동했지만, 페이지 중간에 Full Page Scroll이 삽입된 경우엔 문제가 생겼다.
+
+- 이미지나 비디오 등 포인터 이벤트가 걸려 있는 요소 위에서는 wheel 이벤트가 부모로 전달되지 않아 페이지 전환이 막힘.
+
+- 빠르게 스크롤할 경우 IntersectionObserver가 아직 뷰포트 안으로 진입하기도 전에 이벤트가 끊기는 현상도 발생.
+
+## 3차 시도: 더 단순하게, scrollY 기반 제어
+
+고민 끝에 태초마을로 돌아가 생각했고 방향을 바꿨다.  
+스크롤을 제어하려고 애쓰기보다는 스크롤은 그대로 두고, 특정 시점에 화면이 전환되는 듯한 효과를 주기로 했다.
+
+### 방식
+
+두 페이지를 position: absolute로 겹쳐 놓고,
+스크롤 위치(window.scrollY)가 특정 지점 이상이면 상태값을 변경해 CSS 전환 효과를 주는 방식이다.
+
+처음에는 `scrollY > 5200` 같은 하드코딩된 값으로 구현해 동작을 확인했다.
+
+```tsx
+const [isActive, setIsActive] = useState(false);
+
+useEffect(() => {
+  window.addEventListener("scroll", (e) => {
+    console.log(e.currentTarget.scrollY);
+    setIsActive(e.currentTarget.scrollY > 5200);
+  });
+}, []);
+
 return (
-  <Modal width={900} onClose={handleClose} title="유저 상세">
-    <Layout>{/* 모달 내용 */}</Layout>
-  </Modal>
+  <section className={styles["scroll-section"]}>
+    <div className={styles["section-wrapper"]}>
+      <div
+        ref={sectionRef}
+        className={`${styles["section-first"]} ${styles["section-layer"]} ${
+          isActive ? "" : styles["active"]
+        }`}
+      >
+        <span>1단계 컨텐츠입니다.</span>
+        <strong>다음 화면으로 넘어갑니다.</strong>
+      </div>
+
+      <div
+        className={`${styles["section-second"]} ${styles["section-layer"]} ${
+          isActive ? styles["active"] : ""
+        }`}
+      >
+        <img src="/images/next-step.png" alt="Next Step" />
+      </div>
+    </div>
+  </section>
 );
 ```
 
-### 3. 모달 오픈
+```css
+.scroll-section {
+  height: 200vh;
+  position: relative;
+}
 
-```tsx
-<button
-  onClick={() => {
-    open({
-      element: <UserDetailModal />,
-      id: USER_DETAIL_MODAL_KEY,
-    });
-  }}
->
-  상세보기
-</button>
+.section-wrapper {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.section-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition:
+    opacity 0.4s,
+    transform 0.4s;
+  opacity: 0;
+  transform: translateY(50px);
+}
+
+.section-layer.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.section-first {
+  background-color: #000;
+  color: #fff;
+  text-align: center;
+}
+
+.section-first span,
+.section-first strong {
+  font-size: 2rem;
+  display: block;
+  margin: 0.5rem 0;
+}
+
+.section-second {
+  background: linear-gradient(to bottom, #00e0ff, #0075ff, #0047ff);
+  text-align: center;
+}
 ```
 
-## 마무리
+### scrollY → getBoundingClientRect 개선
 
-이 구조를 도입하면서 기존 방식을 사용하면서 있었던 문제점들이 해결되었고, 전역 상태 기반으로 선언적으로 모달을 관리하면서 코드가 훨씬 깔끔하고 관리하기 쉬워졌다.
+하드코드딩된 방식에서 `getBoundingClientRect().bottom <= window.innerHeight` 를 활용해
+해당 요소가 화면 하단에 다다랐을 때 전환이 되도록 바꿨다.
+
+```tsx
+useEffect(() => {
+  const handleScroll = () => {
+    if (!finishRef.current) {
+      return;
+    }
+    const rect = finishRef.current.getBoundingClientRect();
+    const windowHeight = window.innerHeight;
+    setIsActive(rect.bottom <= windowHeight);
+  };
+  window.addEventListener("scroll", handleScroll);
+  return () => {
+    window.removeEventListener("scroll", handleScroll);
+  };
+}, []);
+```
+
+## 결론
+
+처음엔 정석대로 scroll 이벤트를 제어하려 했지만, 오히려 그게 복잡함을 초래했다.  
+결국은 단순한 방식이 더 나았다.  
+가장 단순한 접근이 때로는 가장 효과적이다.
