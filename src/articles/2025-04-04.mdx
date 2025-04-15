@@ -1,0 +1,211 @@
+---
+title: "환경 이관 실전기: Node 버전 충돌부터 Vite 마이그레이션까지"
+date: 2025-04-04
+show: true
+---
+
+모회사에서 운영하던 홈페이지를 자회사 환경으로 이관하는 작업을 진행했다.
+기존 코드를 그대로 가져오면 될 줄 알았는데, 시작부터 예상치 못한 문제들이 터졌다.
+이 글은 그 과정을 정리한 기술 회고다.
+
+## 1. 빌드 에러: Node 버전 문제
+
+이관 후 가장 먼저 진행한 작업은 기존 홈페이지 프로젝트의 빌드.
+github action build 과정 중 아래와 같은 에러가 발생했다.
+
+```
+Copying .env.test to .env.production
+No NEXT_FILE, skipping copy.
+delete require.cache[require.resolve('./paths')];
+^
+TypeError: Cannot convert undefined or null to object
+...
+Node.js v20.18.3
+```
+
+에러 메시지의 위치가 눈에 띄었다. react-scripts 내부에서 발생했고, 모듈 로딩과 관련된 require.cache 호출에서 터진다.  
+이걸 보고 Node.js와 react-scripts 간의 호환성 문제일 수 있겠다는 의심이 들었다.
+
+CRA 기반 프로젝트였기 때문에,react-scripts 버전과 Node 버전이 충돌하는지 확인했다.
+
+```
+react-scripts: 5.0.1
+Node: 20.x
+```
+
+찾아보니 실제로 Node 20에서 require.cache나 paths 모듈이 제대로 작동하지 않는 경우가 자주 보였다.
+
+Node 버전을 Node 18로 바꿔서 빌드를 다시 시도했다.  
+결과는 정상 빌드 완료.  
+역시 react-scripts와 최신 Node 버전의 호환성 문제였다.
+
+그러나 `모든 프로젝트는 Node 20.x로 통일해야한다`는 Devops 분의 말씀이 있었고, 해당 프로젝트만 Node 18로 고정하는 건 선택지가 아니었다.  
+그래서 CRA를 유지하는 대신 빌드 도구 자체를 갈아엎는 방법을 고민하게 됐다.
+
+## 2. CRA → Vite 마이그레이션
+
+### 왜 Vite였나?
+
+- 최신 Node 버전과의 호환성이 뛰어남
+- CRA보다 훨씬 빠른 빌드 속도
+- 설정이 간단하고 React 공식에서도 권장하는 추세
+
+### 1) react-scripts 제거, Vite 설치
+
+```
+yarn remove react-scripts
+yarn add vite @vitejs/plugin-react --dev
+```
+
+### 2) `vite.config.ts` 생성
+
+프로젝트 루트에 `vite.config.ts` 파일을 만들고, 아래와 같이 설정한다.
+
+```
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  build: {
+    outDir: 'build', // CRA와 동일한 빌드 출력 디렉토리 유지
+  },
+  server: {
+    port: 3000, // 개발 서버 포트 설정 (선택)
+  },
+});
+```
+
+### 3) public/index.html를 프로젝트 루트로 이동하고 내용 수정
+
+- `<script type="module" src="/src/index.tsx">` 추가
+- CRA의 %PUBLIC_URL% 같은 placeholder 제거
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Admin" />
+    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="manifest" href="/manifest.json" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@100;300;400;500;700;900&display=swap"
+      rel="stylesheet"
+    />
+    <title>Admin</title>
+  </head>
+  <body>
+    <noscript
+      >이 사이트를 표시하기 위해서는 브라우저에서 자바스크립트가 허용되어야
+      합니다.</noscript
+    >
+    <div id="root"></div>
+    <script type="module" src="/src/index.tsx"></script>
+  </body>
+</html>
+```
+
+### 4) 환경변수 변경
+
+`process.env.REACT_APP_XXX` -> `import.meta.env.VITE_XXX`
+
+## 3. 로그인 작동 안 함: 도메인 문제
+
+빌드 완료 후 접속해보았으나, 로그인이 되지 않았다.
+처음엔 프론트 코드 문제인 줄 알았지만, API 요청 자체가 아예 도메인 차원에서 차단되고 있었다.  
+확인해보니 배포 환경에서는 인증 서버가 특정 도메인 기반으로만 동작하도록 설정돼 있었고,
+로컬에서는 그냥 localhost로 띄우다 보니 인증 요청이 거부된 것이었다.
+
+좀 더 들어가 보니, ArgoCD의 ConfigMap 설정에서 백엔드 API의 인증 도메인이 `asd-admin.dev~` 로 고정돼 있다는 걸 발견했다.
+즉, 이 설정이 인증 서버 측에서 요청을 허용하는 기준 도메인을 정하고 있었고,
+localhost는 그 기준에 포함되지 않았기 때문에 인증 절차가 통과되지 않았던 것이다.
+
+단순히 configmap을 수정해 localhost로 고정해버리면, 나중에 배포 환경에서 문제가 생기기 때문에 로컬에서도 배포 도메인과 동일한 방식으로 테스트할 수 있도록 세팅을 변경했다.
+
+### 1) 호스트 설정
+
+`/etc/hosts` 파일에 다음 내용을 추가해 로컬에서도 도메인을 매핑했다.
+이렇게 하면 브라우저에서 `asd-admin.dev-example.com`으로 접속해도 로컬 서버로 요청이 전달된다.
+
+```
+127.0.0.1  asd-admin.dev.com
+```
+
+> **주의**: 개발 서버에 접속할 때는 이 라인을 주석 처리해야한다.
+
+### 인증서 발급
+
+인증 서버는 HTTPS 기반으로 작동하므로, 로컬에서도 동일하게 설정해야 했다.  
+mkcert를 이용해 HTTPS 인증서를 생성하고 개발 서버에 적용했다.
+
+```bash
+mkdir certificates
+cd certificates
+mkcert asd-admin.dev.com
+```
+
+이제 로컬에서도 실제 dev 서버 배포 환경과 동일한 조건에서 로그인 테스트가 가능해졌다.
+
+## 4. 401 에러 + 중복호출
+
+앱이 뜨긴 했는데 로그인 후 API 요청이 실패했다.
+콘솔을 보니 token을 넘겨서 response로 accessToken을 받는 checkAuth API가 두 번씩 호출되고 있었다.
+
+```javascript
+useEffect(() => {
+    try {
+      const { data } = await Api.checkAuth(token);
+      // 인증 성공 처리
+    } catch {
+      // 실패 처리
+    }
+}
+```
+
+문제의 원인은 `App.jsx`에 설정된 `React의 StrictMode`였다.
+`StrictMode`는 개발 환경에서 `useEffect`를 일부러 두 번 실행해 side effect 관련 문제를 조기에 잡을 수 있도록 돕는데,
+이로 인해 위 코드가 한 번이 아닌 두 번 호출되면서 문제가 생긴 것이다.
+
+첫 번째 요청은 정상적으로 `200 OK`를 반환했지만,
+같은 token으로 또 한번 요청이 들어가면서 401 에러가 발생했다.
+
+### AbortController 사용
+
+이 문제를 해결하기 위해 `AbortController`를 도입했다.  
+첫 번째 요청이 완료되기 전에 컴포넌트가 리렌더링되면, 이전 요청을 중단시켜 중복 호출을 방지하는 방식이다.
+
+`StrictMode`를 제거했더니 간단히 해결되었지만,
+장기적으로는 `StrictMode`가 제공하는 이점을 놓치고 싶지 않았기 때문에,
+`StrictMode`를 유지한 채로 안정적인 방식을 선택했다.
+
+```javascript
+useEffect(() => {
+  const controller = new AbortController();
+  const signal = controller.signal;
+
+  (async () => {
+    try {
+      const { data } = await Api.checkAuth(token, signal);
+      // 인증 성공 처리
+    } catch {
+      // 실패 처리
+    }
+  })();
+
+  return () => controller.abort();
+}, []);
+```
+
+## 마무리
+
+이번 환경 이관 작업은 단순한 파일 복사나 설정 변경 이상의 일이었다.
+빌드 환경, 인증 방식, 프레임워크 구조 등 예상치 못한 충돌들이 발생했고,
+그때마다 원인을 추적하고, 구조적으로 해결하는 과정을 반복했다.
+
+특히 Node 버전 호환성 이슈를 감지하고 구조를 개선한 경험,
+CRA에서 Vite로의 마이그레이션, 그리고 인증 흐름과 React의 StrictMode까지 대응했던 과정은
+기술적으로도 흥미로웠고, 개인적으로도 많이 배운 경험이었다.
